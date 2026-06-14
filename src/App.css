@@ -11,12 +11,17 @@
   --color-panel-text: #F6CFC8;
 }
 
-.player.theme-blue {
-  --color-title: #063940;
-  --color-primary: #063940;
-  --color-secondary: #1a6b6b;
-  --color-panel-text: #C8D3F6;
+.player.web-mode {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
+
+.player.web-mode .window-title {
+  pointer-events: auto;
+}
+
 
 
 .layer {

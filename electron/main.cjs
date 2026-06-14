@@ -1,14 +1,22 @@
-require('dotenv').config();
-const { app, BrowserWindow, ipcMain, screen, shell, protocol, net } = require('electron');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const path = require('node:path');
-const { pathToFileURL } = require('node:url');
-const { Readable } = require('node:stream');
-const http = require('node:http');
+require("dotenv").config();
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  shell,
+  protocol,
+  net,
+} = require("electron");
+const { execFile } = require("node:child_process");
+const { promisify } = require("node:util");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+const { Readable } = require("node:stream");
+const http = require("node:http");
 
-const fs = require('node:fs');
-const jwt = require('jsonwebtoken');
+const fs = require("node:fs");
+const jwt = require("jsonwebtoken");
 
 const execFileAsync = promisify(execFile);
 
@@ -17,12 +25,24 @@ const execFileAsync = promisify(execFile);
 // Must be registered as privileged before app.whenReady fires.
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: 'cupid-audio',
-    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+    scheme: "cupid-audio",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true,
+    },
   },
   {
-    scheme: 'cupid-local',
-    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+    scheme: "cupid-local",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true,
+    },
   },
 ]);
 
@@ -41,18 +61,21 @@ function generateAppleMusicToken() {
   if (!teamId || !keyId) return null;
 
   // Find the .p8 key file in project root
-  const projectRoot = path.join(__dirname, '..');
-  const keyFiles = fs.readdirSync(projectRoot).filter((f) => f.endsWith('.p8'));
+  const projectRoot = path.join(__dirname, "..");
+  const keyFiles = fs.readdirSync(projectRoot).filter((f) => f.endsWith(".p8"));
   if (keyFiles.length === 0) return null;
 
-  const privateKey = fs.readFileSync(path.join(projectRoot, keyFiles[0]), 'utf8');
+  const privateKey = fs.readFileSync(
+    path.join(projectRoot, keyFiles[0]),
+    "utf8",
+  );
 
   appleMusicToken = jwt.sign({}, privateKey, {
-    algorithm: 'ES256',
-    expiresIn: '180d',
+    algorithm: "ES256",
+    expiresIn: "180d",
     issuer: teamId,
     header: {
-      alg: 'ES256',
+      alg: "ES256",
       kid: keyId,
     },
   });
@@ -78,9 +101,13 @@ function loadVideoIdCache() {
   if (videoIdCacheLoaded) return;
   videoIdCacheLoaded = true;
   try {
-    videoIdCacheFile = path.join(app.getPath('userData'), 'video-id-cache.json');
-    const raw = fs.readFileSync(videoIdCacheFile, 'utf8');
-    for (const [k, v] of Object.entries(JSON.parse(raw))) videoIdCache.set(k, v);
+    videoIdCacheFile = path.join(
+      app.getPath("userData"),
+      "video-id-cache.json",
+    );
+    const raw = fs.readFileSync(videoIdCacheFile, "utf8");
+    for (const [k, v] of Object.entries(JSON.parse(raw)))
+      videoIdCache.set(k, v);
   } catch {
     // no cache file yet
   }
@@ -91,7 +118,9 @@ function persistVideoIdCache() {
   clearTimeout(videoIdSaveTimer);
   videoIdSaveTimer = setTimeout(() => {
     const obj = Object.fromEntries(videoIdCache);
-    fs.promises.writeFile(videoIdCacheFile, JSON.stringify(obj)).catch(() => {});
+    fs.promises
+      .writeFile(videoIdCacheFile, JSON.stringify(obj))
+      .catch(() => {});
   }, 500);
 }
 
@@ -108,13 +137,14 @@ let cachedYtDlpPath = null;
 function getYtDlpPath() {
   if (cachedYtDlpPath) return cachedYtDlpPath;
 
-  const binName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+  const binName = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
 
   const candidates = [
+    "/opt/homebrew/bin/yt-dlp",
     // Dev / cloned-from-source: scripts/install-yt-dlp.cjs drops it here
-    path.join(__dirname, '..', 'bin', binName),
+    path.join(__dirname, "..", "bin", binName),
     // Packaged app: extraResources places it under resourcesPath/bin/
-    path.join(process.resourcesPath || '', 'bin', binName),
+    path.join(process.resourcesPath || "", "bin", binName),
   ];
 
   for (const p of candidates) {
@@ -154,16 +184,18 @@ function getYtDlpPath() {
 function ytDlpCommonArgs() {
   const nodePath = process.env.YTDLP_NODE_PATH;
   const args = [
-    '--js-runtimes', nodePath ? `node:${nodePath}` : 'node',
-    '--extractor-args', 'youtube:player_client=tv,web_safari,default',
+    "--js-runtimes",
+    nodePath ? `node:${nodePath}` : "node",
+    "--extractor-args",
+    "youtube:player_client=tv,web_safari,default",
   ];
 
   const browser = process.env.YTDLP_COOKIES_FROM_BROWSER;
   const cookieFile = process.env.YTDLP_COOKIES;
   if (browser) {
-    args.push('--cookies-from-browser', browser);
+    args.push("--cookies-from-browser", browser);
   } else if (cookieFile) {
-    args.push('--cookies', cookieFile);
+    args.push("--cookies", cookieFile);
   }
 
   return args;
@@ -178,9 +210,12 @@ let innertubePromise = null;
 function getInnertube() {
   if (innertubePromise) return innertubePromise;
   innertubePromise = (async () => {
-    const { Innertube, UniversalCache } = await import('youtubei.js');
+    const { Innertube, UniversalCache } = await import("youtubei.js");
     return Innertube.create({
-      cache: new UniversalCache(true, path.join(app.getPath('userData'), 'innertube-cache')),
+      cache: new UniversalCache(
+        true,
+        path.join(app.getPath("userData"), "innertube-cache"),
+      ),
       generate_session_locally: true,
     });
   })().catch((err) => {
@@ -192,16 +227,19 @@ function getInnertube() {
 
 async function searchYouTubeMusic(title, artist) {
   const yt = await getInnertube();
-  const search = await yt.music.search(`${title} ${artist}`, { type: 'song' });
+  const search = await yt.music.search(`${title} ${artist}`, { type: "song" });
 
   let top = search.songs?.contents?.find((c) => c?.id);
   if (!top) {
     for (const shelf of search.contents || []) {
       const item = shelf?.contents?.find?.((c) => c?.id);
-      if (item) { top = item; break; }
+      if (item) {
+        top = item;
+        break;
+      }
     }
   }
-  if (!top?.id) throw new Error('No song result');
+  if (!top?.id) throw new Error("No song result");
   return top.id;
 }
 
@@ -214,31 +252,46 @@ async function searchYouTubeMusic(title, artist) {
 const YTDLP_EXTRACT_TIMEOUT = 90000;
 
 async function ytDlpExtract(target) {
-  const { stdout } = await execFileAsync(getYtDlpPath(), [
-    target,
-    '-f', 'bestaudio[ext=m4a]/bestaudio',
-    '--no-playlist',
-    '--no-warnings',
-    ...ytDlpCommonArgs(),
-    '-g',
-  ], { timeout: YTDLP_EXTRACT_TIMEOUT });
+  const { stdout } = await execFileAsync(
+    getYtDlpPath(),
+    [
+      target,
+      "-f",
+      "bestaudio[ext=m4a]/bestaudio",
+      "--no-playlist",
+      "--no-warnings",
+      ...ytDlpCommonArgs(),
+      "-g",
+    ],
+    { timeout: YTDLP_EXTRACT_TIMEOUT },
+  );
   return stdout.trim();
 }
 
 async function ytDlpSearch(title, artist) {
-  const { stdout } = await execFileAsync(getYtDlpPath(), [
-    `ytsearch1:"${title}" ${artist}`,
-    '-f', 'bestaudio[ext=m4a]/bestaudio',
-    '--no-playlist',
-    '--no-warnings',
-    ...ytDlpCommonArgs(),
-    '--print', '%(id)s',
-    '-g',
-  ], { timeout: YTDLP_EXTRACT_TIMEOUT });
-  const lines = stdout.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  const { stdout } = await execFileAsync(
+    getYtDlpPath(),
+    [
+      `ytsearch1:"${title}" ${artist}`,
+      "-f",
+      "bestaudio[ext=m4a]/bestaudio",
+      "--no-playlist",
+      "--no-warnings",
+      ...ytDlpCommonArgs(),
+      "--print",
+      "%(id)s",
+      "-g",
+    ],
+    { timeout: YTDLP_EXTRACT_TIMEOUT },
+  );
+  const lines = stdout
+    .trim()
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   const id = lines.find((l) => YT_ID_RE.test(l));
-  const url = lines.find((l) => l.startsWith('http'));
-  if (!id || !url) throw new Error('yt-dlp search returned no usable result');
+  const url = lines.find((l) => l.startsWith("http"));
+  if (!id || !url) throw new Error("yt-dlp search returned no usable result");
   return { id, url };
 }
 
@@ -255,7 +308,9 @@ async function resolveStreamUrl(videoId) {
 
   const promise = (async () => {
     try {
-      const url = await ytDlpExtract(`https://www.youtube.com/watch?v=${videoId}`);
+      const url = await ytDlpExtract(
+        `https://www.youtube.com/watch?v=${videoId}`,
+      );
       decipheredCache.set(videoId, { url, time: Date.now() });
       return url;
     } finally {
@@ -284,7 +339,7 @@ async function getStreamUrl(title, artist) {
         try {
           videoId = await searchYouTubeMusic(title, artist);
         } catch (err) {
-          console.warn('[youtubei search] fallback to yt-dlp:', err.message);
+          console.warn("[youtubei search] fallback to yt-dlp:", err.message);
           const result = await ytDlpSearch(title, artist);
           videoId = result.id;
           // We already have a usable URL from yt-dlp — seed the decipher cache
@@ -312,7 +367,7 @@ async function getStreamUrl(title, artist) {
 // Direct cupid-audio URL for a known YouTube video ID — skips the search step
 // used by Spotify/Apple. Best-effort pre-warms the decipher cache.
 function streamUrlForVideoId(videoId) {
-  if (!YT_ID_RE.test(videoId)) throw new Error('Invalid YouTube video ID');
+  if (!YT_ID_RE.test(videoId)) throw new Error("Invalid YouTube video ID");
   resolveStreamUrl(videoId).catch(() => {});
   return `cupid-audio://stream?id=${encodeURIComponent(videoId)}`;
 }
@@ -321,13 +376,17 @@ function streamUrlForVideoId(videoId) {
 // Returns an array of { videoId, title, artist, duration } — no API key
 // or sign-in required.
 async function fetchYouTubePlaylistViaYtDlp(url) {
-  const { stdout } = await execFileAsync(getYtDlpPath(), [
-    url,
-    '--flat-playlist',
-    '--dump-single-json',
-    '--no-warnings',
-    ...ytDlpCommonArgs(),
-  ], { timeout: 60000, maxBuffer: 50 * 1024 * 1024 });
+  const { stdout } = await execFileAsync(
+    getYtDlpPath(),
+    [
+      url,
+      "--flat-playlist",
+      "--dump-single-json",
+      "--no-warnings",
+      ...ytDlpCommonArgs(),
+    ],
+    { timeout: 60000, maxBuffer: 50 * 1024 * 1024 },
+  );
 
   const data = JSON.parse(stdout);
   const entries = data.entries || [];
@@ -336,12 +395,12 @@ async function fetchYouTubePlaylistViaYtDlp(url) {
     .map((e) => ({
       videoId: e.id,
       title: e.title || e.id,
-      artist: e.uploader || e.channel || '',
-      duration: typeof e.duration === 'number' ? e.duration : null,
+      artist: e.uploader || e.channel || "",
+      duration: typeof e.duration === "number" ? e.duration : null,
     }));
 }
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === "development";
 
 // ── Local audio library (user-editable playlist + mp3s) ───
 // In dev: read/write directly from the project's audio/ folder so edits
@@ -349,17 +408,17 @@ const isDev = process.env.NODE_ENV === 'development';
 // In prod: bundled audio/ ships via extraResources to process.resourcesPath;
 // on first launch we copy it to userData so users can add/edit freely.
 function bundledAudioDir() {
-  return path.join(process.resourcesPath, 'audio');
+  return path.join(process.resourcesPath, "audio");
 }
 
 function userAudioDir() {
   return isDev
-    ? path.join(__dirname, '..', 'audio')
-    : path.join(app.getPath('userData'), 'audio');
+    ? path.join(__dirname, "..", "audio")
+    : path.join(app.getPath("userData"), "audio");
 }
 
 function userPlaylistFile() {
-  return path.join(userAudioDir(), 'playlist.json');
+  return path.join(userAudioDir(), "playlist.json");
 }
 
 async function seedUserAudioDirIfMissing() {
@@ -377,14 +436,16 @@ async function seedUserAudioDirIfMissing() {
 
   try {
     const entries = await fs.promises.readdir(src);
-    await Promise.all(entries.map(async (name) => {
-      const from = path.join(src, name);
-      const to = path.join(dest, name);
-      const stat = await fs.promises.stat(from);
-      if (stat.isFile()) await fs.promises.copyFile(from, to);
-    }));
+    await Promise.all(
+      entries.map(async (name) => {
+        const from = path.join(src, name);
+        const to = path.join(dest, name);
+        const stat = await fs.promises.stat(from);
+        if (stat.isFile()) await fs.promises.copyFile(from, to);
+      }),
+    );
   } catch (err) {
-    console.warn('[seed audio]', err.message);
+    console.warn("[seed audio]", err.message);
   }
 }
 
@@ -401,11 +462,11 @@ function createWindow() {
     resizable: false,
     frame: false,
     transparent: true,
-    backgroundColor: '#00000000',
+    backgroundColor: "#00000000",
     hasShadow: false,
-    icon: path.join(__dirname, '..', 'assets', 'pink', 'favicon.png'),
+    icon: path.join(__dirname, "..", "assets", "pink", "favicon.png"),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -445,8 +506,8 @@ function createWindow() {
     if (win.isDestroyed()) return;
     const bounds = win.getBounds();
 
-    const isRight = corner.includes('right');
-    const isBottom = corner.includes('bottom');
+    const isRight = corner.includes("right");
+    const isBottom = corner.includes("bottom");
 
     const effectiveDx = isRight ? dx : -dx;
     const effectiveDy = isBottom ? dy : -dy;
@@ -476,8 +537,8 @@ function createWindow() {
   };
 
   const onOpenExternal = (_e, url) => {
-    if (typeof url === 'string' && url.startsWith('https://')) {
-      if (url.includes('accounts.spotify.com/authorize')) {
+    if (typeof url === "string" && url.startsWith("https://")) {
+      if (url.includes("accounts.spotify.com/authorize")) {
         const authWin = new BrowserWindow({
           width: 500,
           height: 700,
@@ -488,14 +549,16 @@ function createWindow() {
         });
         authWin.loadURL(url);
         const handleAuthRedirect = (event, callbackUrl) => {
-          if (callbackUrl.startsWith('http://127.0.0.1:5173/callback')) {
+          if (callbackUrl.startsWith("http://127.0.0.1:5173/callback")) {
             event.preventDefault();
             const url = new URL(callbackUrl);
             let target;
             if (isDev) {
               target = `http://127.0.0.1:5173/${url.search}`;
             } else {
-              const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
+              const fileUrl = pathToFileURL(
+                path.join(__dirname, "..", "dist", "index.html"),
+              );
               fileUrl.search = url.search;
               target = fileUrl.href;
             }
@@ -503,8 +566,8 @@ function createWindow() {
             authWin.close();
           }
         };
-        authWin.webContents.on('will-redirect', handleAuthRedirect);
-        authWin.webContents.on('will-navigate', handleAuthRedirect);
+        authWin.webContents.on("will-redirect", handleAuthRedirect);
+        authWin.webContents.on("will-navigate", handleAuthRedirect);
         return;
       }
       shell.openExternal(url);
@@ -512,43 +575,45 @@ function createWindow() {
   };
 
   const onSetTheme = (_e, theme) => {
-    const iconPath = path.join(__dirname, '..', 'assets', theme, 'favicon.png');
-    if (process.platform === 'darwin' && app.dock) {
+    const iconPath = path.join(__dirname, "..", "assets", theme, "favicon.png");
+    if (process.platform === "darwin" && app.dock) {
       app.dock.setIcon(iconPath);
     }
     win.setIcon(iconPath);
   };
 
-  ipcMain.on('window-minimize', onMinimize);
-  ipcMain.on('window-maximize', onMaximize);
-  ipcMain.on('window-close', onClose);
-  ipcMain.on('window-resize', onResize);
-  ipcMain.on('open-external', onOpenExternal);
-  ipcMain.on('set-theme', onSetTheme);
+  ipcMain.on("window-minimize", onMinimize);
+  ipcMain.on("window-maximize", onMaximize);
+  ipcMain.on("window-close", onClose);
+  ipcMain.on("window-resize", onResize);
+  ipcMain.on("open-external", onOpenExternal);
+  ipcMain.on("set-theme", onSetTheme);
 
   // Clean up IPC listeners when window is destroyed
-  win.on('closed', () => {
-    ipcMain.removeListener('window-minimize', onMinimize);
-    ipcMain.removeListener('window-maximize', onMaximize);
-    ipcMain.removeListener('window-close', onClose);
-    ipcMain.removeListener('window-resize', onResize);
-    ipcMain.removeListener('open-external', onOpenExternal);
-    ipcMain.removeListener('set-theme', onSetTheme);
+  win.on("closed", () => {
+    ipcMain.removeListener("window-minimize", onMinimize);
+    ipcMain.removeListener("window-maximize", onMaximize);
+    ipcMain.removeListener("window-close", onClose);
+    ipcMain.removeListener("window-resize", onResize);
+    ipcMain.removeListener("open-external", onOpenExternal);
+    ipcMain.removeListener("set-theme", onSetTheme);
   });
 
   // Handle Spotify OAuth callback in production.
-  win.webContents.on('will-navigate', (event, url) => {
+  win.webContents.on("will-navigate", (event, url) => {
     try {
       const parsed = new URL(url);
-      if (parsed.hostname === 'accounts.spotify.com') {
+      if (parsed.hostname === "accounts.spotify.com") {
         event.preventDefault();
         shell.openExternal(url);
         return;
       }
-      if (parsed.pathname === '/callback' && parsed.searchParams.has('code')) {
+      if (parsed.pathname === "/callback" && parsed.searchParams.has("code")) {
         if (!isDev) {
           event.preventDefault();
-          const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
+          const fileUrl = pathToFileURL(
+            path.join(__dirname, "..", "dist", "index.html"),
+          );
           fileUrl.search = parsed.search;
           win.loadURL(fileUrl.href);
         }
@@ -559,27 +624,30 @@ function createWindow() {
   });
 
   // Toggle DevTools with Cmd+Shift+I / Ctrl+Shift+I / F12
-  win.webContents.on('before-input-event', (_e, input) => {
-    if (input.type !== 'keyDown') return;
-    const isDevToolsShortcut = input.key.toLowerCase() === 'i' && input.shift && (input.meta || input.control);
-    if (isDevToolsShortcut || input.key === 'F12') {
-      win.webContents.toggleDevTools({ mode: 'detach' });
+  win.webContents.on("before-input-event", (_e, input) => {
+    if (input.type !== "keyDown") return;
+    const isDevToolsShortcut =
+      input.key.toLowerCase() === "i" &&
+      input.shift &&
+      (input.meta || input.control);
+    if (isDevToolsShortcut || input.key === "F12") {
+      win.webContents.toggleDevTools({ mode: "detach" });
     }
   });
 
   if (isDev) {
-    win.loadURL('http://127.0.0.1:5173');
+    win.loadURL("http://127.0.0.1:5173");
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
   }
 }
 
 // ── Global IPC handlers (persist across window reloads) ──
-ipcMain.handle('get-apple-music-token', () => {
+ipcMain.handle("get-apple-music-token", () => {
   return generateAppleMusicToken();
 });
 
-ipcMain.handle('get-stream-url', async (_e, title, artist) => {
+ipcMain.handle("get-stream-url", async (_e, title, artist) => {
   try {
     return await getStreamUrl(title, artist);
   } catch (err) {
@@ -587,21 +655,25 @@ ipcMain.handle('get-stream-url', async (_e, title, artist) => {
   }
 });
 
-ipcMain.handle('get-local-playlist', async () => {
+ipcMain.handle("get-local-playlist", async () => {
   try {
-    const raw = await fs.promises.readFile(userPlaylistFile(), 'utf8');
+    const raw = await fs.promises.readFile(userPlaylistFile(), "utf8");
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    if (err.code !== 'ENOENT') console.warn('[playlist.json]', err.message);
+    if (err.code !== "ENOENT") console.warn("[playlist.json]", err.message);
     return [];
   }
 });
 
-ipcMain.handle('get-local-audio-path', (_e, filename) => {
-  if (typeof filename !== 'string' || !filename) return null;
+ipcMain.handle("get-local-audio-path", (_e, filename) => {
+  if (typeof filename !== "string" || !filename) return null;
   // Reject path traversal and absolute paths — filename must be a basename
-  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+  if (
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes("..")
+  ) {
     return null;
   }
   // Use a custom protocol so the dev renderer (served over http://) can play it —
@@ -609,18 +681,18 @@ ipcMain.handle('get-local-audio-path', (_e, filename) => {
   return `cupid-local://audio/${encodeURIComponent(filename)}`;
 });
 
-ipcMain.handle('open-music-folder', async () => {
+ipcMain.handle("open-music-folder", async () => {
   const dir = userAudioDir();
   await fs.promises.mkdir(dir, { recursive: true });
   await shell.openPath(dir);
   return dir;
 });
 
-ipcMain.handle('get-stream-url-by-id', (_e, videoId) => {
+ipcMain.handle("get-stream-url-by-id", (_e, videoId) => {
   return streamUrlForVideoId(videoId);
 });
 
-ipcMain.handle('youtube-fetch-playlist', async (_e, url) => {
+ipcMain.handle("youtube-fetch-playlist", async (_e, url) => {
   try {
     return await fetchYouTubePlaylistViaYtDlp(url);
   } catch (err) {
@@ -635,125 +707,164 @@ ipcMain.handle('youtube-fetch-playlist', async (_e, url) => {
 // after the user completes the flow in their browser.
 let activeOauthServer = null;
 
-ipcMain.handle('youtube-oauth-start', async (_e, { clientId, scope, state, codeChallenge }) => {
-  // Tear down any previous attempt
-  if (activeOauthServer) {
-    try { activeOauthServer.close(); } catch {}
-    activeOauthServer = null;
-  }
+ipcMain.handle(
+  "youtube-oauth-start",
+  async (_e, { clientId, scope, state, codeChallenge }) => {
+    // Tear down any previous attempt
+    if (activeOauthServer) {
+      try {
+        activeOauthServer.close();
+      } catch {}
+      activeOauthServer = null;
+    }
 
-  const { port, server, codePromise } = await new Promise((resolve, reject) => {
-    let resolveCode, rejectCode;
-    const codePromise = new Promise((r1, r2) => { resolveCode = r1; rejectCode = r2; });
+    const { port, server, codePromise } = await new Promise(
+      (resolve, reject) => {
+        let resolveCode, rejectCode;
+        const codePromise = new Promise((r1, r2) => {
+          resolveCode = r1;
+          rejectCode = r2;
+        });
 
-    const srv = http.createServer((req, res) => {
-      const u = new URL(req.url, 'http://127.0.0.1');
-      if (u.pathname !== '/youtube-callback') {
-        res.writeHead(404); res.end('not found');
-        return;
-      }
-      const code = u.searchParams.get('code');
-      const returnedState = u.searchParams.get('state');
-      const error = u.searchParams.get('error');
+        const srv = http.createServer((req, res) => {
+          const u = new URL(req.url, "http://127.0.0.1");
+          if (u.pathname !== "/youtube-callback") {
+            res.writeHead(404);
+            res.end("not found");
+            return;
+          }
+          const code = u.searchParams.get("code");
+          const returnedState = u.searchParams.get("state");
+          const error = u.searchParams.get("error");
 
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      if (error) {
-        res.end(`<!doctype html><meta charset=utf-8><title>cupid player</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Auth failed: ${error}. You can close this window.</div>`);
-        rejectCode(new Error(error));
-      } else if (!code) {
-        res.end('<!doctype html><meta charset=utf-8><div>Missing code. You can close this window.</div>');
-        rejectCode(new Error('No code in callback'));
-      } else if (returnedState !== state) {
-        res.end('<!doctype html><meta charset=utf-8><div>State mismatch. You can close this window.</div>');
-        rejectCode(new Error('OAuth state mismatch'));
-      } else {
-        res.end('<!doctype html><meta charset=utf-8><title>cupid player</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>✓ Signed in — you can close this window and return to Cupid Player.</div>');
-        resolveCode(code);
-      }
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          if (error) {
+            res.end(
+              `<!doctype html><meta charset=utf-8><title>Player</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Auth failed: ${error}. You can close this window.</div>`,
+            );
+            rejectCode(new Error(error));
+          } else if (!code) {
+            res.end(
+              "<!doctype html><meta charset=utf-8><div>Missing code. You can close this window.</div>",
+            );
+            rejectCode(new Error("No code in callback"));
+          } else if (returnedState !== state) {
+            res.end(
+              "<!doctype html><meta charset=utf-8><div>State mismatch. You can close this window.</div>",
+            );
+            rejectCode(new Error("OAuth state mismatch"));
+          } else {
+            res.end(
+              "<!doctype html><meta charset=utf-8><title>PLAY this,not me</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>✓ Signed in — you can close this window and return to Player.</div>",
+            );
+            resolveCode(code);
+          }
 
-      // Close the server shortly after handling — single-shot
-      setTimeout(() => { try { srv.close(); } catch {} }, 500);
+          // Close the server shortly after handling — single-shot
+          setTimeout(() => {
+            try {
+              srv.close();
+            } catch {}
+          }, 500);
+        });
+
+        srv.on("error", reject);
+        srv.listen(0, "127.0.0.1", () => {
+          resolve({ port: srv.address().port, server: srv, codePromise });
+        });
+      },
+    );
+
+    activeOauthServer = server;
+
+    const redirectUri = `http://127.0.0.1:${port}/youtube-callback`;
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: "code",
+      redirect_uri: redirectUri,
+      scope,
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      access_type: "offline",
+      prompt: "consent",
     });
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 
-    srv.on('error', reject);
-    srv.listen(0, '127.0.0.1', () => {
-      resolve({ port: srv.address().port, server: srv, codePromise });
-    });
-  });
+    // Open in the user's default browser — Google refuses embedded webviews
+    shell.openExternal(authUrl);
 
-  activeOauthServer = server;
+    // Auto-timeout after 5 minutes so we don't leak the server forever
+    const timeout = setTimeout(
+      () => {
+        try {
+          server.close();
+        } catch {}
+      },
+      5 * 60 * 1000,
+    );
 
-  const redirectUri = `http://127.0.0.1:${port}/youtube-callback`;
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    redirect_uri: redirectUri,
-    scope,
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
-    access_type: 'offline',
-    prompt: 'consent',
-  });
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+    try {
+      const code = await codePromise;
+      clearTimeout(timeout);
+      activeOauthServer = null;
+      return { code, redirectUri };
+    } catch (err) {
+      clearTimeout(timeout);
+      activeOauthServer = null;
+      throw err;
+    }
+  },
+);
 
-  // Open in the user's default browser — Google refuses embedded webviews
-  shell.openExternal(authUrl);
-
-  // Auto-timeout after 5 minutes so we don't leak the server forever
-  const timeout = setTimeout(() => {
-    try { server.close(); } catch {}
-  }, 5 * 60 * 1000);
-
-  try {
-    const code = await codePromise;
-    clearTimeout(timeout);
-    activeOauthServer = null;
-    return { code, redirectUri };
-  } catch (err) {
-    clearTimeout(timeout);
-    activeOauthServer = null;
-    throw err;
-  }
-});
-
-ipcMain.handle('youtube-oauth-cancel', () => {
+ipcMain.handle("youtube-oauth-cancel", () => {
   if (activeOauthServer) {
-    try { activeOauthServer.close(); } catch {}
+    try {
+      activeOauthServer.close();
+    } catch {}
     activeOauthServer = null;
   }
 });
 
 app.whenReady().then(() => {
-  if (process.platform === 'darwin' && app.dock) {
-    app.dock.setIcon(path.join(__dirname, '..', 'assets', 'pink', 'favicon.png'));
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setIcon(
+      path.join(__dirname, "..", "assets", "pink", "favicon.png"),
+    );
   }
 
-  seedUserAudioDirIfMissing().catch((err) => console.warn('[seed]', err.message));
+  seedUserAudioDirIfMissing().catch((err) =>
+    console.warn("[seed]", err.message),
+  );
 
-  protocol.handle('cupid-local', async (request) => {
+  protocol.handle("cupid-local", async (request) => {
     try {
       const u = new URL(request.url);
-      const filename = decodeURIComponent(u.pathname.replace(/^\//, ''));
-      if (!filename || filename.includes('..') || filename.includes('\\') || filename.includes('/')) {
-        return new Response('forbidden', { status: 403 });
+      const filename = decodeURIComponent(u.pathname.replace(/^\//, ""));
+      if (
+        !filename ||
+        filename.includes("..") ||
+        filename.includes("\\") ||
+        filename.includes("/")
+      ) {
+        return new Response("forbidden", { status: 403 });
       }
       const filePath = path.join(userAudioDir(), filename);
       const stat = await fs.promises.stat(filePath);
       const total = stat.size;
-      const range = request.headers.get('Range');
+      const range = request.headers.get("Range");
 
       const ext = path.extname(filename).toLowerCase();
       const mimeByExt = {
-        '.mp3': 'audio/mpeg',
-        '.m4a': 'audio/mp4',
-        '.aac': 'audio/aac',
-        '.flac': 'audio/flac',
-        '.wav': 'audio/wav',
-        '.ogg': 'audio/ogg',
-        '.opus': 'audio/ogg',
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+        ".aac": "audio/aac",
+        ".flac": "audio/flac",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".opus": "audio/ogg",
       };
-      const contentType = mimeByExt[ext] || 'application/octet-stream';
+      const contentType = mimeByExt[ext] || "application/octet-stream";
 
       if (range) {
         const match = /bytes=(\d+)-(\d*)/.exec(range);
@@ -763,10 +874,10 @@ app.whenReady().then(() => {
         return new Response(Readable.toWeb(nodeStream), {
           status: 206,
           headers: {
-            'Content-Range': `bytes ${start}-${end}/${total}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': String(end - start + 1),
-            'Content-Type': contentType,
+            "Content-Range": `bytes ${start}-${end}/${total}`,
+            "Accept-Ranges": "bytes",
+            "Content-Length": String(end - start + 1),
+            "Content-Type": contentType,
           },
         });
       }
@@ -774,43 +885,43 @@ app.whenReady().then(() => {
       return new Response(Readable.toWeb(fs.createReadStream(filePath)), {
         status: 200,
         headers: {
-          'Accept-Ranges': 'bytes',
-          'Content-Length': String(total),
-          'Content-Type': contentType,
+          "Accept-Ranges": "bytes",
+          "Content-Length": String(total),
+          "Content-Type": contentType,
         },
       });
     } catch (err) {
-      console.error('[cupid-local]', err.message);
-      return new Response('not found', { status: 404 });
+      console.error("[cupid-local]", err.message);
+      return new Response("not found", { status: 404 });
     }
   });
 
-  protocol.handle('cupid-audio', async (request) => {
+  protocol.handle("cupid-audio", async (request) => {
     try {
-      const id = new URL(request.url).searchParams.get('id');
-      if (!id) return new Response('missing id', { status: 400 });
+      const id = new URL(request.url).searchParams.get("id");
+      if (!id) return new Response("missing id", { status: 400 });
 
       const streamUrl = await resolveStreamUrl(id);
 
       const headers = {
-        Origin: 'https://www.youtube.com',
-        Referer: 'https://www.youtube.com/',
-        'User-Agent': 'Mozilla/5.0',
+        Origin: "https://www.youtube.com",
+        Referer: "https://www.youtube.com/",
+        "User-Agent": "Mozilla/5.0",
       };
-      const range = request.headers.get('Range');
+      const range = request.headers.get("Range");
       if (range) headers.Range = range;
 
       const upstream = await net.fetch(streamUrl, { headers });
       const respHeaders = new Headers(upstream.headers);
-      respHeaders.set('Content-Type', 'audio/mp4');
+      respHeaders.set("Content-Type", "audio/mp4");
       return new Response(upstream.body, {
         status: upstream.status,
         statusText: upstream.statusText,
         headers: respHeaders,
       });
     } catch (err) {
-      console.error('[cupid-audio]', err.message);
-      return new Response('failed', { status: 502 });
+      console.error("[cupid-audio]", err.message);
+      return new Response("failed", { status: 502 });
     }
   });
 
@@ -818,13 +929,13 @@ app.whenReady().then(() => {
 
   // Pre-warm both engines so the first track load skips cold-start
   getInnertube().catch(() => {});
-  execFile(getYtDlpPath(), ['--version'], () => {});
+  execFile(getYtDlpPath(), ["--version"], () => {});
 
-  app.on('activate', () => {
+  app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
 });

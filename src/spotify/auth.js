@@ -6,7 +6,16 @@
  */
 
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
+
+function getRedirectUri() {
+  if (import.meta.env.VITE_SPOTIFY_REDIRECT_URI) {
+    return import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/callback`;
+  }
+  return 'http://127.0.0.1:5173/callback';
+}
 const SCOPES = [
   'streaming',
   'user-read-email',
@@ -61,7 +70,7 @@ export async function login() {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: 'code',
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     scope: SCOPES.join(' '),
     code_challenge_method: 'S256',
     code_challenge: challenge,
@@ -105,7 +114,7 @@ export async function handleCallback() {
       client_id: CLIENT_ID,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: getRedirectUri(),
       code_verifier: verifier,
     });
 
