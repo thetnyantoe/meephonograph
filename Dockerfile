@@ -7,23 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
   && chmod a+rx /usr/local/bin/yt-dlp \
   && rm -rf /var/lib/apt/lists/*
 
-# ✅ COPY EVERYTHING FIRST
 COPY . .
 
 RUN npm ci
-
-# VITE env
-ARG VITE_SPOTIFY_CLIENT_ID
-ARG VITE_SPOTIFY_REDIRECT_URI
-ARG VITE_YOUTUBE_CLIENT_ID
-ARG VITE_YOUTUBE_CLIENT_SECRET
-
-ENV VITE_SPOTIFY_CLIENT_ID=$VITE_SPOTIFY_CLIENT_ID
-ENV VITE_SPOTIFY_REDIRECT_URI=$VITE_SPOTIFY_REDIRECT_URI
-ENV VITE_YOUTUBE_CLIENT_ID=$VITE_YOUTUBE_CLIENT_ID
-ENV VITE_YOUTUBE_CLIENT_SECRET=$VITE_YOUTUBE_CLIENT_SECRET
-
 RUN npm run build:web
+
+
+# --------------------
 FROM node:22-bookworm-slim
 
 WORKDIR /app
@@ -33,8 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
   && chmod a+rx /usr/local/bin/yt-dlp \
   && rm -rf /var/lib/apt/lists/*
 
+# ONLY install production deps WITHOUT postinstall
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
