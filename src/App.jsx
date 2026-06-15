@@ -109,7 +109,6 @@ function SettingsDropdown({ value, options, onChange }) {
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", updateRect);
-    // Close on scroll anywhere — positions become stale fast
     window.addEventListener("scroll", () => setOpen(false), true);
     return () => {
       document.removeEventListener("mousedown", onMouseDown);
@@ -163,8 +162,6 @@ function SettingsDropdown({ value, options, onChange }) {
               </button>
             ))}
           </div>,
-          // Portal to .player so CSS custom properties (--color-primary, etc.)
-          // and the theme class still cascade. document.body would orphan them.
           document.querySelector(".player") ?? document.body,
         )}
     </div>
