@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from "react";
 
 /**
  * Local audio player hook (HTML5 Audio).
@@ -7,7 +7,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
  * loaded in App via window.cupid.getLocalPlaylist(). Files are resolved
  * to file:// URLs through getAudioPath so spaces/Unicode work correctly.
  */
-export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath) {
+export default function useAudioPlayer(
+  tracks,
+  playMode = "normal",
+  getAudioPath,
+) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
@@ -27,14 +31,20 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolumeState] = useState(() => {
-    const saved = localStorage.getItem('cupid-volume');
+    const saved = localStorage.getItem("cupid-volume");
     return saved !== null ? parseFloat(saved) : 1;
   });
   const [muted, setMuted] = useState(false);
 
-  const track = tracks[trackIndex] ?? { title: 'No track', artist: '', file: '', art: null };
+  const track = tracks[trackIndex] ?? {
+    title: "No track",
+    artist: "",
+    file: "",
+    art: null,
+  };
   const audio = audioRef.current;
   audio.volume = muted ? 0 : volume;
+  const endedRef = useRef(false);
 
   // Load track when index or tracks change
   useEffect(() => {
@@ -51,8 +61,31 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
         src = `./${t.file}`;
       }
       if (cancelled || !src) return;
+      // Aggressive reset for WebKit/Safari: pause and clear src before setting
+      // the new src so Safari does not retain previous metadata/duration.
+      const isWebKit =
+        typeof navigator !== "undefined" &&
+        /AppleWebKit/.test(navigator.userAgent) &&
+        !/Chrome/.test(navigator.userAgent);
+      if (isWebKit) {
+        try {
+          audio.pause();
+        } catch (e) {}
+        try {
+          audio.removeAttribute("src");
+        } catch (e) {}
+        try {
+          audio.src = "";
+          audio.load();
+        } catch (e) {}
+      }
       audio.src = src;
-      audio.load();
+      try {
+        audio.currentTime = 0;
+      } catch (e) {}
+      try {
+        audio.load();
+      } catch (e) {}
       setProgress(0);
       setCurrentTime(0);
       setDuration(0);
@@ -61,7 +94,9 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [trackIndex, tracks]);
 
   // Time update listener
@@ -70,38 +105,52 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
       setCurrentTime(audio.currentTime);
       if (audio.duration) {
         setProgress(audio.currentTime / audio.duration);
+        if (
+          !endedRef.current &&
+          isFinite(audio.duration) &&
+          audio.duration - audio.currentTime < 0.25
+        ) {
+          endedRef.current = true;
+          try {
+            audio.dispatchEvent(new Event("ended"));
+          } catch (e) {}
+        }
       }
     };
 
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
+      endedRef.current = false;
     };
 
     const onEnded = () => {
-      if (playModeRef.current === 'repeat') {
+      endedRef.current = false;
+      if (playModeRef.current === "repeat") {
         audio.currentTime = 0;
         audio.play().catch(() => {});
         return;
       }
       setTrackIndex((prev) => {
         if (tracks.length === 0) return 0;
-        if (playModeRef.current === 'shuffle') {
+        if (playModeRef.current === "shuffle") {
           let next;
-          do { next = Math.floor(Math.random() * tracks.length); } while (next === prev && tracks.length > 1);
+          do {
+            next = Math.floor(Math.random() * tracks.length);
+          } while (next === prev && tracks.length > 1);
           return next;
         }
         return (prev + 1) % tracks.length;
       });
     };
 
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('ended', onEnded);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
 
     return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
     };
   }, [tracks]);
 
@@ -123,9 +172,11 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
   const next = useCallback(() => {
     setTrackIndex((prev) => {
       if (tracks.length === 0) return 0;
-      if (playModeRef.current === 'shuffle' && tracks.length > 1) {
+      if (playModeRef.current === "shuffle" && tracks.length > 1) {
         let n;
-        do { n = Math.floor(Math.random() * tracks.length); } while (n === prev);
+        do {
+          n = Math.floor(Math.random() * tracks.length);
+        } while (n === prev);
         return n;
       }
       return (prev + 1) % tracks.length;
@@ -153,7 +204,7 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     const clamped = Math.max(0, Math.min(1, v));
     setVolumeState(clamped);
     audio.volume = clamped;
-    localStorage.setItem('cupid-volume', clamped);
+    localStorage.setItem("cupid-volume", clamped);
     if (clamped > 0) setMuted(false);
   }, []);
 

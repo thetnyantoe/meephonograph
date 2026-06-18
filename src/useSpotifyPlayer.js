@@ -15,6 +15,7 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
   playModeRef.current = playMode;
   // Shared between prefetch, next(), and onEnded so we play what we warmed
   const nextIdxRef = useRef(null);
+  const endedRef = useRef(false);
   const [trackIndex, setTrackIndex] = useState(0);
 
   // Reset to track 0 on playlist change, otherwise the stale index can be
@@ -70,8 +71,26 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
         setProgress(0);
         setCurrentTime(0);
         setDuration(0);
+        // Aggressive reset for WebKit/Safari: pause, clear src, load empty, then set
+        // new src. This prevents Safari from retaining previous metadata/duration.
+        const isWebKit =
+          typeof navigator !== "undefined" &&
+          /AppleWebKit/.test(navigator.userAgent) &&
+          !/Chrome/.test(navigator.userAgent);
+        if (isWebKit) {
+          try {
+            audio.pause();
+          } catch (e) {}
+          try {
+            audio.removeAttribute("src");
+          } catch (e) {}
+          try {
+            audio.src = "";
+            audio.load();
+          } catch (e) {}
+        }
         // setting src triggers loading; reset element time and call audio.load()
-        // to ensure metadata resets (helps Safari).
+        // to ensure metadata resets.
         audio.src = url;
         try {
           audio.currentTime = 0;
@@ -143,14 +162,31 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
       setCurrentTime(audio.currentTime);
       if (audio.duration) {
         setProgress(audio.currentTime / audio.duration);
+        // Safari sometimes doesn't fire 'ended'; if we're extremely close to
+        // the reported duration, dispatch a synthetic 'ended' once as a
+        // fallback.
+        if (
+          !endedRef.current &&
+          isFinite(audio.duration) &&
+          audio.duration - audio.currentTime < 0.25
+        ) {
+          endedRef.current = true;
+          try {
+            audio.dispatchEvent(new Event("ended"));
+          } catch (e) {}
+        }
       }
     };
 
     const onLoadedMetadata = () => {
       setDuration(audio.duration);
+      // reset fallback flag when new metadata arrives
+      endedRef.current = false;
     };
 
     const onEnded = () => {
+      // reset fallback flag when natural ended fires
+      endedRef.current = false;
       if (playModeRef.current === "repeat") {
         audio.currentTime = 0;
         audio.play().catch(() => {});
