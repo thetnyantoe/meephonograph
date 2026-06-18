@@ -906,16 +906,41 @@ app.whenReady().then(() => {
       const headers = {
         Origin: "https://www.youtube.com",
         Referer: "https://www.youtube.com/",
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
       };
+
       const range = request.headers.get("Range");
       if (range) headers.Range = range;
 
       const upstream = await net.fetch(streamUrl, { headers });
-      const respHeaders = new Headers(upstream.headers);
-      respHeaders.set("Content-Type", "audio/mp4");
+
+      // Create a clean response header map
+      const respHeaders = new Headers();
+
+      // CRITICAL FOR SAFARI: Copy exact stream metadata directly from YouTube
+      const preservedHeaders = [
+        "content-type",
+        "content-length",
+        "content-range",
+        "accept-ranges",
+        "cache-control",
+      ];
+
+      for (const h of preservedHeaders) {
+        const val = upstream.headers.get(h);
+        if (val) {
+          respHeaders.set(h, val);
+        }
+      }
+
+      // Fallback only if YouTube didn't provide a content type
+      if (!respHeaders.has("content-type")) {
+        respHeaders.set("Content-Type", "audio/mp4");
+      }
+
       return new Response(upstream.body, {
-        status: upstream.status,
+        status: upstream.status, // Correctly yields 206 Partial Content when requested
         statusText: upstream.statusText,
         headers: respHeaders,
       });
