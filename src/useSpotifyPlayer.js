@@ -7,9 +7,9 @@
  * Same interface as useAudioPlayer.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
-export default function useSpotifyPlayer(tracks, playMode = 'normal') {
+export default function useSpotifyPlayer(tracks, playMode = "normal") {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
@@ -35,18 +35,18 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
   const [volume, setVolumeState] = useState(() => {
-    const saved = localStorage.getItem('cupid-volume');
+    const saved = localStorage.getItem("cupid-volume");
     return saved !== null ? parseFloat(saved) : 1;
   });
   const [muted, setMuted] = useState(false);
 
   const audio = audioRef.current;
   audio.volume = muted ? 0 : volume;
-  audio.preload = 'auto';
+  audio.preload = "auto";
 
   const track = tracks[trackIndex] ?? {
-    title: 'No track',
-    artist: '',
+    title: "No track",
+    artist: "",
     art: null,
     uri: null,
   };
@@ -66,13 +66,26 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
           ? await window.cupid.getStreamUrlById(t.videoId)
           : await window.cupid.getStreamUrl(t.title, t.artist);
         if (cancelled) return;
-        // setting src triggers loading; an explicit audio.load() would reset it
+        // Reset player state before loading new src so Safari clears old metadata
+        setProgress(0);
+        setCurrentTime(0);
+        setDuration(0);
+        // setting src triggers loading; reset element time and call audio.load()
+        // to ensure metadata resets (helps Safari).
         audio.src = url;
+        try {
+          audio.currentTime = 0;
+        } catch (e) {}
+        try {
+          audio.load();
+        } catch (e) {
+          // some browsers may throw on load() for certain stream types — ignore
+        }
         if (isPlayingRef.current) {
           audio.play().catch(() => {});
         }
       } catch (err) {
-        console.error('Failed to get stream:', err.message);
+        console.error("Failed to get stream:", err.message);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -80,7 +93,9 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
 
     loadStream();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [trackIndex, tracks]);
 
   // ── Precompute next index + prefetch surrounding tracks ───
@@ -104,7 +119,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     };
 
     let nextIdx;
-    if (playMode === 'shuffle' && tracks.length > 1) {
+    if (playMode === "shuffle" && tracks.length > 1) {
       do {
         nextIdx = Math.floor(Math.random() * tracks.length);
       } while (nextIdx === trackIndex);
@@ -116,7 +131,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     prefetch(nextIdx);
 
     // Shuffle's second hop is unpredictable, so only look ahead in linear mode
-    if (playMode !== 'shuffle') {
+    if (playMode !== "shuffle") {
       prefetch((trackIndex + 2) % tracks.length);
       prefetch((trackIndex - 1 + tracks.length) % tracks.length);
     }
@@ -136,7 +151,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     };
 
     const onEnded = () => {
-      if (playModeRef.current === 'repeat') {
+      if (playModeRef.current === "repeat") {
         audio.currentTime = 0;
         audio.play().catch(() => {});
         return;
@@ -145,23 +160,25 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
         if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
           return nextIdxRef.current;
         }
-        if (playModeRef.current === 'shuffle' && tracks.length > 1) {
+        if (playModeRef.current === "shuffle" && tracks.length > 1) {
           let next;
-          do { next = Math.floor(Math.random() * tracks.length); } while (next === prev);
+          do {
+            next = Math.floor(Math.random() * tracks.length);
+          } while (next === prev);
           return next;
         }
         return (prev + 1) % tracks.length;
       });
     };
 
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('ended', onEnded);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
 
     return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
     };
   }, [tracks.length]);
 
@@ -183,9 +200,11 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
       if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
         return nextIdxRef.current;
       }
-      if (playModeRef.current === 'shuffle' && tracks.length > 1) {
+      if (playModeRef.current === "shuffle" && tracks.length > 1) {
         let n;
-        do { n = Math.floor(Math.random() * tracks.length); } while (n === prev);
+        do {
+          n = Math.floor(Math.random() * tracks.length);
+        } while (n === prev);
         return n;
       }
       return (prev + 1) % tracks.length;
@@ -212,7 +231,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     const clamped = Math.max(0, Math.min(1, v));
     setVolumeState(clamped);
     audio.volume = clamped;
-    localStorage.setItem('cupid-volume', clamped);
+    localStorage.setItem("cupid-volume", clamped);
     if (clamped > 0) setMuted(false);
   }, []);
 
