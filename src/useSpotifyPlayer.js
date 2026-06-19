@@ -13,6 +13,7 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
+  const trackDurationRef = useRef(null);
   // Shared between prefetch, next(), and onEnded so we play what we warmed
   const nextIdxRef = useRef(null);
   const endedRef = useRef(false);
@@ -51,6 +52,13 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
     art: null,
     uri: null,
   };
+  const trackDuration =
+    typeof track.duration === "number" &&
+    Number.isFinite(track.duration) &&
+    track.duration > 0
+      ? track.duration
+      : null;
+  trackDurationRef.current = trackDuration;
 
   // ── Load track when index or tracks change ────────────────
   useEffect(() => {
@@ -70,7 +78,13 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
         // Reset player state before loading new src so Safari clears old metadata
         setProgress(0);
         setCurrentTime(0);
-        setDuration(0);
+        setDuration(
+          typeof t.duration === "number" &&
+            Number.isFinite(t.duration) &&
+            t.duration > 0
+            ? t.duration
+            : 0,
+        );
         // Aggressive reset for WebKit/Safari: pause, clear src, load empty, then set
         // new src. This prevents Safari from retaining previous metadata/duration.
         const isWebKit =
@@ -159,16 +173,16 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
   // ── Audio event listeners ─────────────────────────────────
   useEffect(() => {
     const onTimeUpdate = () => {
+      const effectiveDuration = trackDurationRef.current || audio.duration;
       setCurrentTime(audio.currentTime);
-      if (audio.duration) {
-        setProgress(audio.currentTime / audio.duration);
+      if (effectiveDuration) {
+        setProgress(Math.min(audio.currentTime / effectiveDuration, 1));
         // Safari sometimes doesn't fire 'ended'; if we're extremely close to
-        // the reported duration, dispatch a synthetic 'ended' once as a
-        // fallback.
+        // the real track duration, dispatch a synthetic 'ended' once as a fallback.
         if (
           !endedRef.current &&
-          isFinite(audio.duration) &&
-          audio.duration - audio.currentTime < 0.25
+          isFinite(effectiveDuration) &&
+          effectiveDuration - audio.currentTime < 0.25
         ) {
           endedRef.current = true;
           try {
@@ -179,7 +193,7 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
     };
 
     const onLoadedMetadata = () => {
-      setDuration(audio.duration);
+      setDuration(trackDurationRef.current || audio.duration);
       // reset fallback flag when new metadata arrives
       endedRef.current = false;
     };
@@ -258,8 +272,9 @@ export default function useSpotifyPlayer(tracks, playMode = "normal") {
   }, [tracks.length]);
 
   const seek = useCallback((fraction) => {
-    if (audio.duration) {
-      audio.currentTime = Math.min(fraction, 1) * audio.duration;
+    const effectiveDuration = trackDurationRef.current || audio.duration;
+    if (effectiveDuration) {
+      audio.currentTime = Math.min(fraction, 1) * effectiveDuration;
     }
   }, []);
 
