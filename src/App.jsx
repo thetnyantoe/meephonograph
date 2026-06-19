@@ -1,5 +1,4 @@
 import { useCallback, useRef, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import "./App.css";
 import useAudioPlayer from "./useAudioPlayer";
 import useSpotifyPlayer from "./useSpotifyPlayer";
@@ -78,94 +77,6 @@ function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function SettingsDropdown({ value, options, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [menuRect, setMenuRect] = useState(null);
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const updateRect = () => {
-      const r = triggerRef.current?.getBoundingClientRect();
-      if (r) setMenuRect({ top: r.bottom, left: r.left, width: r.width });
-    };
-    updateRect();
-
-    const onMouseDown = (e) => {
-      if (
-        !triggerRef.current?.contains(e.target) &&
-        !menuRef.current?.contains(e.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", updateRect);
-    window.addEventListener("scroll", () => setOpen(false), true);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", updateRect);
-    };
-  }, [open]);
-
-  const current = options.find((o) => o.value === value);
-
-  return (
-    <div className={`settings-dropdown ${open ? "open" : ""}`}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="settings-dropdown-trigger"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>{current?.label ?? value}</span>
-        <span className="settings-dropdown-chevron" aria-hidden="true">
-          ▾
-        </span>
-      </button>
-      {open &&
-        menuRect &&
-        createPortal(
-          <div
-            ref={menuRef}
-            className="settings-dropdown-menu"
-            role="listbox"
-            style={{
-              position: "fixed",
-              top: `${menuRect.top + 2}px`,
-              left: `${menuRect.left}px`,
-              width: `${menuRect.width}px`,
-            }}
-          >
-            {options.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                role="option"
-                aria-selected={o.value === value}
-                className={`settings-dropdown-item ${o.value === value ? "active" : ""}`}
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>,
-          document.querySelector(".player") ?? document.body,
-        )}
-    </div>
-  );
 }
 
 function PlaylistList({
@@ -548,9 +459,10 @@ export default function App() {
   const resizeBR = useResize("bottom-right");
 
   return (
-    <div
-      className={`player ${theme === "blue" ? "theme-blue" : ""} ${electron ? "" : "web-mode"}`}
-    >
+    <div className={`app-shell ${electron ? "desktop-shell" : "web-shell"}`}>
+      <div
+        className={`player ${theme === "blue" ? "theme-blue" : ""} ${electron ? "" : "web-mode"}`}
+      >
       {/* Base frame */}
       <img src={assets.frame} className="layer" alt="" draggable={false} />
 
@@ -700,6 +612,16 @@ export default function App() {
         alt=""
         draggable={false}
       />
+
+      <button
+        type="button"
+        className="theme-toggle"
+        onClick={toggleTheme}
+        aria-label={`switch to ${theme === "pink" ? "blue" : "pink"} theme`}
+      >
+        <span className={theme === "pink" ? "active" : ""}>pink</span>
+        <span className={theme === "blue" ? "active" : ""}>blue</span>
+      </button>
 
       {/* SVG clip-path for pixel-art album mask */}
       <svg width="0" height="0" style={{ position: "absolute" }}>
@@ -883,25 +805,6 @@ export default function App() {
       {showSettings && (
         <div className="settings-panel">
           <div className="settings-panel-inner">
-            <div className="settings-label">theme</div>
-            <div className="settings-theme-row">
-              <button
-                className={`settings-theme-btn ${theme === "pink" ? "active" : ""}`}
-                onClick={() => {
-                  if (theme !== "pink") toggleTheme();
-                }}
-              >
-                pink
-              </button>
-              <button
-                className={`settings-theme-btn ${theme === "blue" ? "active" : ""}`}
-                onClick={() => {
-                  if (theme !== "blue") toggleTheme();
-                }}
-              >
-                blue
-              </button>
-            </div>
             <div className="settings-label">YouTube playlist</div>
             <div className="settings-note">
               Paste a YouTube playlist URL and press Enter or Load
@@ -919,9 +822,9 @@ export default function App() {
               }}
               disabled={loadingPlaylist}
             />
-            <div className="settings-theme-row">
+            <div className="settings-action-row">
               <button
-                className={`settings-theme-btn ${loadingPlaylist || !youtubeUrlInput.trim() ? "disabled" : ""}`}
+                className={`settings-action-btn ${loadingPlaylist || !youtubeUrlInput.trim() ? "disabled" : ""}`}
                 onClick={() =>
                   loadYoutubePlaylistFromUrl(youtubeUrlInput.trim())
                 }
@@ -930,7 +833,7 @@ export default function App() {
                 {loadingPlaylist ? "loading..." : "load playlist"}
               </button>
               <button
-                className="settings-theme-btn"
+                className="settings-action-btn settings-clear-btn"
                 onClick={() => {
                   setYoutubeUrlInput("");
                   setStreamTracks([]);
@@ -947,6 +850,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

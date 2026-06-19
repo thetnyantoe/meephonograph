@@ -1,3 +1,21 @@
+.app-shell {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.web-shell {
+  min-height: 100dvh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .player {
   position: relative;
   width: 100vw;
@@ -12,10 +30,8 @@
 }
 
 .player.web-mode {
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
+  height: calc(497 / 306 * 100vw);
+  flex: 0 0 auto;
 }
 
 .player.web-mode .window-title {
@@ -123,6 +139,43 @@
   top: calc((48 - 23) / 306 * 100vw);
 }
 
+.theme-toggle {
+  position: absolute;
+  left: calc((246 - 110) / 306 * 100vw);
+  top: calc((48 - 23) / 306 * 100vw);
+  width: calc(55 / 306 * 100vw);
+  height: calc(21 / 306 * 100vw);
+  z-index: 160;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(2 / 306 * 100vw);
+  padding: calc(2 / 306 * 100vw);
+  border: calc(1 / 306 * 100vw) solid var(--color-secondary);
+  border-radius: calc(3 / 306 * 100vw);
+  background: rgba(26, 18, 24, 0.55);
+  color: var(--color-panel-text);
+  font-family: 'Rainyhearts', monospace;
+  font-size: calc(9 / 306 * 100vw);
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.theme-toggle span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border-radius: calc(2 / 306 * 100vw);
+  opacity: 0.75;
+}
+
+.theme-toggle span.active {
+  background: var(--color-panel-text);
+  color: var(--color-primary);
+  opacity: 1;
+}
+
 .settings-panel {
   position: absolute;
   top: calc((70 - 23) / 306 * 100vw);
@@ -136,8 +189,8 @@
   background: var(--color-primary);
   border: calc(2 / 306 * 100vw) solid var(--color-secondary);
   border-radius: calc(4 / 306 * 100vw);
-  padding: calc(6 / 306 * 100vw);
-  width: calc(140 / 306 * 100vw);
+  padding: calc(8 / 306 * 100vw);
+  width: calc(158 / 306 * 100vw);
   max-height: calc(260 / 306 * 100vw);
   overflow-y: auto;
   scrollbar-width: none;
@@ -241,14 +294,44 @@
   color: var(--color-primary);
 }
 
+.settings-action-row {
+  display: grid;
+  grid-template-columns: 1.35fr 0.85fr;
+  gap: calc(6 / 306 * 100vw);
+}
+
+.settings-action-btn {
+  min-height: calc(25 / 306 * 100vw);
+  font-family: 'Rainyhearts', monospace;
+  font-size: calc(12 / 306 * 100vw);
+  line-height: 1;
+  background: var(--color-panel-text);
+  border: calc(1 / 306 * 100vw) solid var(--color-panel-text);
+  border-radius: calc(3 / 306 * 100vw);
+  color: var(--color-primary);
+  padding: calc(4 / 306 * 100vw) calc(7 / 306 * 100vw);
+  cursor: pointer;
+}
+
+.settings-action-btn.disabled,
+.settings-action-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.settings-clear-btn {
+  background: transparent;
+  color: var(--color-panel-text);
+}
+
 .settings-input {
   font-family: 'Rainyhearts', monospace;
-  font-size: calc(10 / 306 * 100vw);
+  font-size: calc(11 / 306 * 100vw);
   background: rgba(0, 0, 0, 0.3);
   border: calc(1 / 306 * 100vw) solid var(--color-panel-text);
-  border-radius: calc(2 / 306 * 100vw);
+  border-radius: calc(3 / 306 * 100vw);
   color: var(--color-panel-text);
-  padding: calc(3 / 306 * 100vw) calc(4 / 306 * 100vw);
+  padding: calc(5 / 306 * 100vw) calc(6 / 306 * 100vw);
   outline: none;
 }
 
